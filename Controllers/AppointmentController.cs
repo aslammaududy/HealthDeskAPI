@@ -1,8 +1,10 @@
 using HealthDeskAPI.Models;
 using HealthDeskAPI.Models.Enums;
 using HealthDeskAPI.Requests;
+using HealthDeskAPI.Responses;
 using HealthDeskAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HealthDeskAPI.Controllers
 {
@@ -12,17 +14,30 @@ namespace HealthDeskAPI.Controllers
         : ControllerBase
     {
 
-        [HttpGet]
-        public async Task<ActionResult<Appointment>> GetAppointment(int id)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<AppointmentResponse>> GetAppointment(int id)
         {
-            var appointment = await context.Appointments.FindAsync(id);
+            var appointment = await context.Appointments
+                .Include(a => a.Patient)
+                .Include(a => a.Doctor)
+                .Include(a => a.Schedule)
+                .FirstOrDefaultAsync(a => a.Id == id);
 
             if (appointment == null)
             {
                 return NotFound();
             }
 
-            return appointment;
+            var response = new AppointmentResponse(
+                appointment.Patient.FullName,
+                appointment.Doctor.FullName,
+                appointment.Status,
+                appointment.Schedule.DayOfWeek,
+                appointment.Schedule.StartTime,
+                appointment.Schedule.EndTime
+            );
+
+            return response;
         }
         
         [HttpPost]
@@ -42,7 +57,7 @@ namespace HealthDeskAPI.Controllers
             
             context.Appointments.Add(appointment);
             await context.SaveChangesAsync();
-            
+
             return CreatedAtAction(nameof(GetAppointment), new { id = appointment.Id }, appointment);
         }
     }
