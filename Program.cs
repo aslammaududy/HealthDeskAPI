@@ -1,5 +1,4 @@
 using HealthDeskAPI.Models;
-using HealthDeskAPI.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,7 +8,6 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<HealthDeskApiContext>(opt => opt.UseInMemoryDatabase("HealthDeskApi"));
-builder.Services.AddSingleton<QueueNumberGenerator>();
 
 
 var app = builder.Build();
