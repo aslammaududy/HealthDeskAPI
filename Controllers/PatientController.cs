@@ -1,12 +1,15 @@
+using HealthDeskAPI.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
+using HealthDeskAPI.Requests;
+using HealthDeskAPI.Responses;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class PatientController : ControllerBase
+    public class PatientController : ControllerBase, IMappable<PatientResponse, Patient, PatientRequest>
     {
         private readonly HealthDeskApiContext _context;
 
@@ -17,9 +20,10 @@ namespace HealthDeskAPI.Controllers
 
         // GET: api/Patient
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Patient>>> GetPatients()
+        public async Task<ActionResult<IEnumerable<PatientResponse>>> GetPatients()
         {
-            return await _context.Patients.ToListAsync();
+            var patients = await _context.Patients.ToListAsync();
+            return patients.Select(ToResponse).ToList();
         }
 
         // GET: api/Patient/5
@@ -39,14 +43,15 @@ namespace HealthDeskAPI.Controllers
         // PUT: api/Patient/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutPatient(int id, Patient patient)
+        public async Task<IActionResult> PutPatient(int id, PatientRequest request)
         {
-            if (id != patient.Id)
+            var patient = await _context.Patients.FindAsync(id);
+            if (patient == null)
             {
-                return BadRequest();
+                return NotFound();
             }
 
-            _context.Entry(patient).State = EntityState.Modified;
+            UpdateModel(request, patient);
 
             try
             {
@@ -58,10 +63,8 @@ namespace HealthDeskAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -70,12 +73,15 @@ namespace HealthDeskAPI.Controllers
         // POST: api/Patient
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Patient>> PostPatient(Patient patient)
+        public async Task<ActionResult<PatientResponse>> PostPatient(PatientRequest request)
         {
+            var patient = new Patient();
+            UpdateModel(request, patient);
+
             _context.Patients.Add(patient);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, patient);
+            return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, ToResponse(patient));
         }
 
         // DELETE: api/Patient/5
@@ -97,6 +103,30 @@ namespace HealthDeskAPI.Controllers
         private bool PatientExists(int id)
         {
             return _context.Patients.Any(e => e.Id == id);
+        }
+
+        public PatientResponse ToResponse(Patient patient)
+        {
+            return new PatientResponse(
+                patient.Id,
+                patient.MedicalRecordNumber,
+                patient.Nik,
+                patient.FullName,
+                patient.DateOfBirth,
+                patient.Gender,
+                patient.PhoneNumber,
+                patient.Address
+            );
+        }
+
+        public void UpdateModel(PatientRequest request, Patient model)
+        {
+            model.Nik = request.Nik;
+            model.FullName = request.FullName;
+            model.DateOfBirth = request.DateOfBirth;
+            model.Gender = request.Gender;
+            model.PhoneNumber = request.PhoneNumber;
+            model.Address = request.Address;
         }
     }
 }

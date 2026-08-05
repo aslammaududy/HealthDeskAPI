@@ -1,12 +1,15 @@
+using HealthDeskAPI.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
+using HealthDeskAPI.Requests;
+using HealthDeskAPI.Responses;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class DoctorController : ControllerBase
+    public class DoctorController : ControllerBase, IMappable<DoctorResponse, Doctor, DoctorRequest>
     {
         private readonly HealthDeskApiContext _context;
 
@@ -17,14 +20,31 @@ namespace HealthDeskAPI.Controllers
 
         // GET: api/Doctor
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Doctor>>> GetDoctors()
+        public async Task<ActionResult<IEnumerable<DoctorResponse>>> GetDoctors()
         {
-            return await _context.Doctors.ToListAsync();
+            var doctors = await _context.Doctors.Include(d => d.Specialization).ToListAsync();
+
+            return doctors.Select(ToResponse).ToList();
         }
 
         // GET: api/Doctor/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Doctor>> GetDoctor(int id)
+        public async Task<ActionResult<DoctorResponse>> GetDoctor(int id)
+        {
+            var doctor = await _context.Doctors.Include(d => d.Specialization).FirstOrDefaultAsync(d => d.Id == id);
+
+            if (doctor == null)
+            {
+                return NotFound();
+            }
+
+            return ToResponse(doctor);
+        }
+
+        // PUT: api/Doctor/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutDoctor(int id, DoctorRequest request)
         {
             var doctor = await _context.Doctors.FindAsync(id);
 
@@ -33,20 +53,7 @@ namespace HealthDeskAPI.Controllers
                 return NotFound();
             }
 
-            return doctor;
-        }
-
-        // PUT: api/Doctor/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutDoctor(int id, Doctor doctor)
-        {
-            if (id != doctor.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(doctor).State = EntityState.Modified;
+            UpdateModel(request, doctor);
 
             try
             {
@@ -58,10 +65,8 @@ namespace HealthDeskAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -70,12 +75,15 @@ namespace HealthDeskAPI.Controllers
         // POST: api/Doctor
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Doctor>> PostDoctor(Doctor doctor)
+        public async Task<ActionResult<DoctorResponse>> PostDoctor(DoctorRequest request)
         {
+            var doctor = new Doctor();
+            UpdateModel(request, doctor);
+
             _context.Doctors.Add(doctor);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetDoctor), new { id = doctor.Id }, doctor);
+            return CreatedAtAction(nameof(GetDoctor), new { id = doctor.Id }, ToResponse(doctor));
         }
 
         // DELETE: api/Doctor/5
@@ -97,6 +105,24 @@ namespace HealthDeskAPI.Controllers
         private bool DoctorExists(int id)
         {
             return _context.Doctors.Any(e => e.Id == id);
+        }
+
+        public DoctorResponse ToResponse(Doctor doctor)
+        {
+            return new DoctorResponse(
+                doctor.Id,
+                doctor.FullName,
+                doctor.SpecializationId,
+                doctor.Specialization?.Name,
+                doctor.IsActive
+            );
+        }
+
+        public void UpdateModel(DoctorRequest request, Doctor model)
+        {
+            model.FullName = request.FullName;
+            model.SpecializationId = request.SpecializationId;
+            model.IsActive = request.IsActive;
         }
     }
 }
