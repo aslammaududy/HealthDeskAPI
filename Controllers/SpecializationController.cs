@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
+using HealthDeskAPI.Requests;
 
 namespace HealthDeskAPI.Controllers
 {
@@ -39,14 +40,16 @@ namespace HealthDeskAPI.Controllers
         // PUT: api/Specialization/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutSpecialization(int id, Specialization specialization)
+        public async Task<IActionResult> PutSpecialization(int id, SpecializationRequest request)
         {
-            if (id != specialization.Id)
+            var specialization = await _context.Specializations.FindAsync(id);
+            if (specialization == null)
             {
-                return BadRequest();
+                return NotFound();
             }
 
-            _context.Entry(specialization).State = EntityState.Modified;
+            specialization.Code = request.Code;
+            specialization.Name = request.Name;
 
             try
             {
@@ -58,10 +61,8 @@ namespace HealthDeskAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -70,8 +71,13 @@ namespace HealthDeskAPI.Controllers
         // POST: api/Specialization
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Specialization>> PostSpecialization(Specialization specialization)
+        public async Task<ActionResult<Specialization>> PostSpecialization(SpecializationRequest request)
         {
+            var specialization = new Specialization
+            {
+                Code = request.Code,
+                Name = request.Name
+            };
             _context.Specializations.Add(specialization);
             await _context.SaveChangesAsync();
 
