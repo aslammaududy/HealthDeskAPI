@@ -1,12 +1,15 @@
+using HealthDeskAPI.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
+using HealthDeskAPI.Requests;
+using HealthDeskAPI.Responses;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ScheduleController : ControllerBase
+    public class ScheduleController : ControllerBase, IMappable<ScheduleResponse, Schedule, ScheduleRequest>
     {
         private readonly HealthDeskApiContext _context;
 
@@ -17,36 +20,38 @@ namespace HealthDeskAPI.Controllers
 
         // GET: api/Schedule
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Schedule>>> GetSchedules()
+        public async Task<ActionResult<IEnumerable<ScheduleResponse>>> GetSchedules()
         {
-            return await _context.Schedules.ToListAsync();
+            var schedules = await _context.Schedules.ToListAsync();
+            return schedules.Select(ToResponse).ToList();
         }
 
         // GET: api/Schedule/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Schedule>> GetSchedule(int id)
+        public async Task<ActionResult<ScheduleResponse>> GetSchedule(int id)
         {
-            var schedule = await _context.Schedules.FindAsync(id);
+            var schedule = await _context.Schedules.Include(s => s.Doctor).FirstOrDefaultAsync(s => s.Id == id);
 
             if (schedule == null)
             {
                 return NotFound();
             }
 
-            return schedule;
+            return ToResponse(schedule);
         }
 
         // PUT: api/Schedule/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutSchedule(int id, Schedule schedule)
+        public async Task<IActionResult> PutSchedule(int id, ScheduleRequest request)
         {
-            if (id != schedule.Id)
+            var schedule = await _context.Schedules.FindAsync(id);
+            if (schedule == null)
             {
-                return BadRequest();
+                return NotFound();
             }
 
-            _context.Entry(schedule).State = EntityState.Modified;
+            UpdateModel(request, schedule);
 
             try
             {
@@ -58,10 +63,8 @@ namespace HealthDeskAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
@@ -70,12 +73,15 @@ namespace HealthDeskAPI.Controllers
         // POST: api/Schedule
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<Schedule>> PostSchedule(Schedule schedule)
+        public async Task<ActionResult<ScheduleResponse>> PostSchedule(ScheduleRequest request)
         {
+            var schedule = new Schedule();
+            UpdateModel(request, schedule);
+
             _context.Schedules.Add(schedule);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetSchedule), new { id = schedule.Id }, schedule);
+            return CreatedAtAction(nameof(GetSchedule), new { id = schedule.Id }, ToResponse(schedule));
         }
 
         // DELETE: api/Schedule/5
@@ -97,6 +103,27 @@ namespace HealthDeskAPI.Controllers
         private bool ScheduleExists(int id)
         {
             return _context.Schedules.Any(e => e.Id == id);
+        }
+
+        public ScheduleResponse ToResponse(Schedule schedule)
+        {
+            return new ScheduleResponse(
+                schedule.Id,
+                schedule.Doctor?.FullName,
+                schedule.DayOfWeek,
+                schedule.StartTime,
+                schedule.EndTime,
+                schedule.MaxQuota
+            );
+        }
+
+        public void UpdateModel(ScheduleRequest request, Schedule model)
+        {
+            model.DayOfWeek = request.DayOfWeek;
+            model.DoctorId = request.DoctorId;
+            model.StartTime = request.StartTime;
+            model.EndTime = request.EndTime;
+            model.MaxQuota = request.MaxQuota;
         }
     }
 }

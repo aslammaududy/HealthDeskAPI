@@ -1,3 +1,4 @@
+using HealthDeskAPI.Interfaces;
 using HealthDeskAPI.Models;
 using HealthDeskAPI.Models.Enums;
 using HealthDeskAPI.Requests;
@@ -11,9 +12,8 @@ namespace HealthDeskAPI.Controllers
     [Route("api/[controller]")]
     [ApiController]
     public class AppointmentController(HealthDeskApiContext context, QueueNumberGenerator queueNumberGenerator)
-        : ControllerBase
+        : ControllerBase, IMappable<AppointmentResponse, Appointment, AppointmentRequest>
     {
-
         [HttpGet("{id}")]
         public async Task<ActionResult<AppointmentResponse>> GetAppointment(int id)
         {
@@ -28,7 +28,27 @@ namespace HealthDeskAPI.Controllers
                 return NotFound();
             }
 
-            var response = new AppointmentResponse(
+            return ToResponse(appointment);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<AppointmentResponse>> PostAppointment(AppointmentRequest request)
+        {
+            var appointment = new Appointment();
+            UpdateModel(request, appointment);
+
+            appointment.QueueNumber = await queueNumberGenerator.Generate(appointment);
+
+            context.Appointments.Add(appointment);
+            await context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetAppointment), new { id = appointment.Id }, ToResponse(appointment));
+        }
+
+        public AppointmentResponse ToResponse(Appointment appointment)
+        {
+            return new AppointmentResponse(
+                appointment.Id,
                 appointment.Patient.FullName,
                 appointment.Doctor.FullName,
                 appointment.Status,
@@ -36,29 +56,16 @@ namespace HealthDeskAPI.Controllers
                 appointment.Schedule.StartTime,
                 appointment.Schedule.EndTime
             );
-
-            return response;
         }
-        
-        [HttpPost]
-        public async Task<ActionResult<Appointment>> PostAppointment(AppointmentRequest request)
+
+        public void UpdateModel(AppointmentRequest request, Appointment model)
         {
-            var appointment = new Appointment
-            {
-                PatientId = request.PatientId,
-                DoctorId = request.DoctorId,
-                ScheduleId = request.ScheduleId,
-                AppointmentDate = request.AppointmentDate,
-                Status = AppointmentStatus.Scheduled,
-                Notes = request.Notes
-            };
-
-            appointment.QueueNumber = await queueNumberGenerator.Generate(appointment);
-            
-            context.Appointments.Add(appointment);
-            await context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetAppointment), new { id = appointment.Id }, appointment);
+            model.PatientId = request.PatientId;
+            model.DoctorId = request.DoctorId;
+            model.ScheduleId = request.ScheduleId;
+            model.AppointmentDate = request.AppointmentDate;
+            model.Status = AppointmentStatus.Scheduled;
+            model.Notes = request.Notes;
         }
     }
 }
