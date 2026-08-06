@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
 using HealthDeskAPI.Requests;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize(Roles = "Superadmin,Registration")]
     [ApiController]
     public class SpecializationController : ControllerBase
     {
