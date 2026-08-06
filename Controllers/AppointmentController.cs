@@ -4,12 +4,14 @@ using HealthDeskAPI.Models.Enums;
 using HealthDeskAPI.Requests;
 using HealthDeskAPI.Responses;
 using HealthDeskAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize(Roles = "Superadmin,Patient")]
     [ApiController]
     public class AppointmentController(HealthDeskApiContext context, QueueNumberGenerator queueNumberGenerator)
         : ControllerBase, IMappable<AppointmentResponse, Appointment, AppointmentRequest>

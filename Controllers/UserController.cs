@@ -1,12 +1,17 @@
+using HealthDeskAPI.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
+using HealthDeskAPI.Requests;
+using HealthDeskAPI.Responses;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize(Roles = "Superadmin")]
     [ApiController]
-    public class UserController : ControllerBase
+    public class UserController : ControllerBase, IMappable<UserResponse, ApplicationUser, UserRequest>
     {
         private readonly HealthDeskApiContext _context;
 
@@ -17,36 +22,38 @@ namespace HealthDeskAPI.Controllers
 
         // GET: api/User
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserResponse>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            var users = await _context.ApplicationUsers.ToListAsync();
+            return users.Select(ToResponse).ToList();
         }
 
-        // GET: api/User/5
+        // GET: api/User/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<UserResponse>> GetUser(string id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _context.ApplicationUsers.FindAsync(id);
 
             if (user == null)
             {
                 return NotFound();
             }
 
-            return user;
+            return ToResponse(user);
         }
 
-        // PUT: api/User/5
+        // PUT: api/User/{id}
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(int id, User user)
+        public async Task<IActionResult> PutUser(string id, UserRequest request)
         {
-            if (id != user.Id)
+            var applicationUser = await _context.ApplicationUsers.FindAsync(id);
+            if (applicationUser == null)
             {
-                return BadRequest();
+                return NotFound();
             }
 
-            _context.Entry(user).State = EntityState.Modified;
+            UpdateModel(request, applicationUser);
 
             try
             {
@@ -58,45 +65,51 @@ namespace HealthDeskAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+
+                throw;
             }
 
             return NoContent();
         }
 
-        // POST: api/User
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<User>> PostUser(User user)
-        {
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
-        }
-
-        // DELETE: api/User/5
+        // DELETE: api/User/{id}
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        public async Task<IActionResult> DeleteUser(string id)
         {
-            var user = await _context.Users.FindAsync(id);
+            var user = await _context.ApplicationUsers.FindAsync(id);
             if (user == null)
             {
                 return NotFound();
             }
 
-            _context.Users.Remove(user);
+            _context.ApplicationUsers.Remove(user);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
-        private bool UserExists(int id)
+        private bool UserExists(string id)
         {
-            return _context.Users.Any(e => e.Id == id);
+            return _context.ApplicationUsers.Any(e => e.Id == id);
+        }
+
+        public UserResponse ToResponse(ApplicationUser model)
+        {
+            return new UserResponse(
+                model.Id,
+                model.Email!,
+                model.FirstName,
+                model.LastName,
+                model.CreatedAt
+            );
+        }
+
+        public void UpdateModel(UserRequest request, ApplicationUser model)
+        {
+            model.Email = request.Email;
+            model.UserName = request.Email;
+            model.FirstName = request.FirstName;
+            model.LastName = request.LastName;
         }
     }
 }

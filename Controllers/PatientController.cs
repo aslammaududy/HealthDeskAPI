@@ -4,10 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using HealthDeskAPI.Models;
 using HealthDeskAPI.Requests;
 using HealthDeskAPI.Responses;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HealthDeskAPI.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize(Roles = "Superadmin,Registration")]
     [ApiController]
     public class PatientController : ControllerBase, IMappable<PatientResponse, Patient, PatientRequest>
     {
