@@ -81,6 +81,9 @@ namespace HealthDeskAPI.Controllers
             _context.Patients.Add(patient);
             await _context.SaveChangesAsync();
 
+            patient.MedicalRecordNumber = patient.Id.ToString("D6");
+            await _context.SaveChangesAsync();
+
             return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, ToResponse(patient));
         }
 

@@ -10,5 +10,15 @@ namespace HealthDeskAPI.Models
         public DbSet<Schedule> Schedules { get; set; } = null!;
         public DbSet<Specialization> Specializations { get; set; } = null!;
         public DbSet<User> Users { get; set; } = null!;
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // Always invoke the base implementation first
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<Patient>()
+                .HasIndex(p => p.MedicalRecordNumber)
+                .IsUnique();
+        }
     }
 }
