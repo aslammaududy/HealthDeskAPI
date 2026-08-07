@@ -13,5 +13,9 @@ namespace HealthDeskAPI.Models
         public string PhoneNumber { get; set; } = string.Empty;
         public string? Address { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // FK to ApplicationUser
+        public string? UserId { get; set; }
+        public ApplicationUser? User { get; set; }
     }
 }

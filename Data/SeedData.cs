@@ -148,11 +148,11 @@ public static class SeedData
         var patientData = new[]
         {
             new { Email = "patient1@healthdesk.com", FirstName = "John", LastName = "Doe", Password = "Patient@123",
-                   Nik = "3201234567890001", FullName = "John Doe", DOB = new DateOnly(1990, 1, 15), Gender = Gender.Male, Phone = "081234567890", Address = "123 Main St" },
+                   Nik = "3201234567890001", DOB = new DateOnly(1990, 1, 15), Gender = Gender.Male, Phone = "081234567890", Address = "123 Main St" },
             new { Email = "patient2@healthdesk.com", FirstName = "Jane", LastName = "Smith", Password = "Patient@123",
-                   Nik = "3201234567890002", FullName = "Jane Smith", DOB = new DateOnly(1985, 6, 20), Gender = Gender.Female, Phone = "081234567891", Address = "456 Oak Ave" },
+                   Nik = "3201234567890002", DOB = new DateOnly(1985, 6, 20), Gender = Gender.Female, Phone = "081234567891", Address = "456 Oak Ave" },
             new { Email = "patient3@healthdesk.com", FirstName = "Bob", LastName = "Wilson", Password = "Patient@123",
-                   Nik = "3201234567890003", FullName = "Bob Wilson", DOB = new DateOnly(1978, 11, 30), Gender = Gender.Male, Phone = "081234567892", Address = "789 Pine Rd" }
+                   Nik = "3201234567890003", DOB = new DateOnly(1978, 11, 30), Gender = Gender.Male, Phone = "081234567892", Address = "789 Pine Rd" }
         };
 
         foreach (var p in patientData)
@@ -181,11 +181,12 @@ public static class SeedData
                     var patient = new Patient
                     {
                         Nik = p.Nik,
-                        FullName = p.FullName,
+                        FullName = $"{p.FirstName} {p.LastName}",
                         DateOfBirth = p.DOB,
                         Gender = p.Gender,
                         PhoneNumber = p.Phone,
-                        Address = p.Address
+                        Address = p.Address,
+                        UserId = patientUser.Id
                     };
 
                     using var transaction = await context.Database.BeginTransactionAsync();
