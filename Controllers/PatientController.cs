@@ -5,6 +5,7 @@ using HealthDeskAPI.Models;
 using HealthDeskAPI.Requests;
 using HealthDeskAPI.Responses;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 
 namespace HealthDeskAPI.Controllers
 {
@@ -14,10 +15,12 @@ namespace HealthDeskAPI.Controllers
     public class PatientController : ControllerBase, IMappable<PatientResponse, Patient, PatientRequest>
     {
         private readonly HealthDeskApiContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public PatientController(HealthDeskApiContext context)
+        public PatientController(HealthDeskApiContext context, UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: api/Patient
@@ -40,6 +43,44 @@ namespace HealthDeskAPI.Controllers
             }
 
             return patient;
+        }
+
+        // POST: api/Patient/profile
+        [HttpPost("profile")]
+        [Authorize(Roles = "Patient")]
+        public async Task<ActionResult<PatientResponse>> PostProfile(PatientRequest request)
+        {
+            var userId = _userManager.GetUserId(User);
+            if (userId == null) return Unauthorized();
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return Unauthorized();
+
+            var patient = new Patient
+            {
+                UserId = userId,
+                FullName = $"{user.FirstName} {user.LastName}"
+            };
+            UpdateModel(request, patient);
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.Patients.Add(patient);
+                await _context.SaveChangesAsync();
+
+                patient.MedicalRecordNumber = patient.Id.ToString("D6");
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, ToResponse(patient));
         }
 
         // PUT: api/Patient/5
@@ -70,23 +111,6 @@ namespace HealthDeskAPI.Controllers
             }
 
             return NoContent();
-        }
-
-        // POST: api/Patient
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<PatientResponse>> PostPatient(PatientRequest request)
-        {
-            var patient = new Patient();
-            UpdateModel(request, patient);
-
-            _context.Patients.Add(patient);
-            await _context.SaveChangesAsync();
-
-            patient.MedicalRecordNumber = patient.Id.ToString("D6");
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetPatient), new { id = patient.Id }, ToResponse(patient));
         }
 
         // DELETE: api/Patient/5
@@ -127,7 +151,6 @@ namespace HealthDeskAPI.Controllers
         public void UpdateModel(PatientRequest request, Patient model)
         {
             model.Nik = request.Nik;
-            model.FullName = request.FullName;
             model.DateOfBirth = request.DateOfBirth;
             model.Gender = request.Gender;
             model.PhoneNumber = request.PhoneNumber;

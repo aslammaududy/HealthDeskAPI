@@ -20,6 +20,13 @@ namespace HealthDeskAPI.Models
             modelBuilder.Entity<Patient>()
                 .HasIndex(p => p.MedicalRecordNumber)
                 .IsUnique();
+
+            // Configure 1:1 Patient → ApplicationUser FK relationship
+            modelBuilder.Entity<Patient>()
+                .HasOne(p => p.User)
+                .WithOne(u => u.Patient)
+                .HasForeignKey<Patient>(p => p.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }
